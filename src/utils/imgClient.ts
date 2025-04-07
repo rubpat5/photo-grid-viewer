@@ -15,6 +15,7 @@ export interface Photo {
     landscape: string;
     tiny: string;
   };
+  alt: string;
 }
 
 export interface ApiResponse {
@@ -52,4 +53,36 @@ export const getCuratedPhotos = async (page = 1, perPage = 30): Promise<ApiRespo
   }
 
   return response.json();
+};
+
+export const getPhotoById = async (id: string): Promise<Photo> => {
+  const apiKey = getApiKey();
+
+  const response = await fetch(`${API_BASE_URL}/photos/${id}`, {
+    headers: {
+      Authorization: apiKey,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch photo details');
+  }
+
+  return response.json();
+};
+
+const photoCache: Record<string, { data: Photo; timestamp: number }> = {};
+const CACHE_DURATION = 1000 * 60 * 60;
+
+export const getCachedPhoto = async (id: string): Promise<Photo> => {
+  const cached = photoCache[id];
+  const now = Date.now();
+
+  if (cached && now - cached.timestamp < CACHE_DURATION) {
+    return cached.data;
+  }
+
+  const photo = await getPhotoById(id);
+  photoCache[id] = { data: photo, timestamp: now };
+  return photo;
 };

@@ -1,5 +1,6 @@
 import styled from 'styled-components';
 import { usePhotos } from '../hooks/usePhotos';
+import { Link } from 'react-router-dom';
 
 const Container = styled.div`
   padding: 20px;
@@ -59,12 +60,14 @@ function GridPage() {
     <Container>
       <Grid>
         {photos.map((photo) => (
-          <PhotoItem key={photo.id}>
-            <img
-              src={photo.src.medium}
-              alt={`Photo by ${photo.photographer}`}
-            />
-          </PhotoItem>
+          <Link key={photo.id} to={`/photo/${photo.id}`} style={{ textDecoration: 'none' }}>
+            <PhotoItem>
+              <img
+                src={photo.src.medium}
+                alt={`Photo by ${photo.photographer}`}
+              />
+            </PhotoItem>
+          </Link>
         ))}
       </Grid>
     </Container>
