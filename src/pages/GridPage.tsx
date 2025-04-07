@@ -6,9 +6,35 @@ const Container = styled.div`
 `;
 
 const Grid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 20px;
+  column-count: 3;
+  column-gap: 20px;
+  
+  @media (max-width: 1200px) {
+    column-count: 2;
+  }
+  
+  @media (max-width: 768px) {
+    column-count: 1;
+  }
+`;
+
+const PhotoItem = styled.div`
+  break-inside: avoid;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease-in-out;
+
+  &:hover {
+    transform: scale(1.02);
+  }
+
+  img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
 `;
 
 const LoadingMessage = styled.div`
@@ -33,12 +59,12 @@ function GridPage() {
     <Container>
       <Grid>
         {photos.map((photo) => (
-          <img
-            key={photo.id}
-            src={photo.src.medium}
-            alt={`Photo by ${photo.photographer}`}
-            style={{ width: '100%', height: 'auto', borderRadius: '8px' }}
-          />
+          <PhotoItem key={photo.id}>
+            <img
+              src={photo.src.medium}
+              alt={`Photo by ${photo.photographer}`}
+            />
+          </PhotoItem>
         ))}
       </Grid>
     </Container>
