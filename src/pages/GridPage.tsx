@@ -1,52 +1,7 @@
-import styled from 'styled-components';
 import { usePhotos } from '../hooks/usePhotos';
 import { Link } from 'react-router-dom';
-import { useRef, useState, useEffect, useCallback } from 'react';
-
-const Container = styled.div`
-  padding: 20px;
-`;
-
-const Grid = styled.div`
-  position: relative;
-  column-count: 3;
-  column-gap: 20px;
-  
-  @media (max-width: 1200px) {
-    column-count: 2;
-  }
-  
-  @media (max-width: 768px) {
-    column-count: 1;
-  }
-`;
-
-const PhotoItem = styled.div<{ $isPlaceholder?: boolean }>`
-  break-inside: avoid;
-  margin-bottom: 20px;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease-in-out;
-  opacity: ${props => props.$isPlaceholder ? 0 : 1};
-
-  &:hover {
-    transform: scale(1.02);
-  }
-
-  img {
-    width: 100%;
-    height: auto;
-    display: block;
-  }
-`;
-
-const LoadingMessage = styled.div`
-  text-align: center;
-  padding: 40px;
-  font-size: 1.2rem;
-  color: #666;
-`;
+import { useRef, useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { Container, Grid, PhotoItem, LoadingMessage } from './styles/GridStyles';
 
 const throttle = (fn: Function, delay: number) => {
   let lastCall = 0;
@@ -64,6 +19,7 @@ function GridPage() {
   const [visiblePhotos, setVisiblePhotos] = useState<number[]>([]);
   const [containerHeight, setContainerHeight] = useState(0);
   const [photoPositions, setPhotoPositions] = useState<{ [key: number]: { top: number; left: number; height: number } }>({});
+  const [renderedPhotos, setRenderedPhotos] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (!gridRef.current || photos.length === 0) return;
@@ -113,24 +69,11 @@ function GridPage() {
       })
       .map(([index]) => parseInt(index));
 
-    const isNearBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 500;
-    if (isNearBottom && visibleIndices.length < photos.length) {
-      const lastVisibleIndex = Math.max(...visibleIndices);
-      const additionalPhotos = Math.min(12, photos.length - lastVisibleIndex - 1);
-      if (additionalPhotos > 0) {
-        const newIndices = Array.from(
-          { length: additionalPhotos },
-          (_, i) => lastVisibleIndex + i + 1
-        );
-        const combinedIndices = [...visibleIndices, ...newIndices].filter((value, index, self) => 
-          self.indexOf(value) === index
-        );
-        setVisiblePhotos(combinedIndices);
-        return;
-      }
-    }
-
     setVisiblePhotos(visibleIndices);
+    
+    setTimeout(() => {
+      setRenderedPhotos(new Set(visibleIndices));
+    }, 100);
   }, [photos, containerHeight, photoPositions]);
 
   useEffect(() => {
@@ -149,7 +92,9 @@ function GridPage() {
   useEffect(() => {
     if (photos.length > 0 && visiblePhotos.length === 0) {
       const initialVisibleCount = Math.min(photos.length, 12);
-      setVisiblePhotos(Array.from({ length: initialVisibleCount }, (_, i) => i));
+      const initialVisible = Array.from({ length: initialVisibleCount }, (_, i) => i);
+      setVisiblePhotos(initialVisible);
+      setRenderedPhotos(new Set(initialVisible));
     }
   }, [photos, visiblePhotos.length]);
 
@@ -169,6 +114,9 @@ function GridPage() {
           if (!position) return null;
 
           const isVisible = visiblePhotos.includes(index);
+          const shouldRender = renderedPhotos.has(index);
+
+          if (!shouldRender) return null;
 
           return (
             <PhotoItem
@@ -182,15 +130,23 @@ function GridPage() {
                 height: `${position.height}px`,
               }}
             >
-              {isVisible && (
-                <Link to={`/photo/${photo.id}`} style={{ textDecoration: 'none' }}>
-                  <img
-                    src={photo.src.medium}
-                    alt={`Photo by ${photo.photographer}`}
-                    loading="lazy"
-                  />
-                </Link>
-              )}
+              <Link to={`/photo/${photo.id}`} style={{ textDecoration: 'none' }}>
+                <img
+                  src={photo.src.medium}
+                  alt={`Photo by ${photo.photographer}`}
+                  width={photo.width}
+                  height={photo.height}
+                  loading={index < 6 ? "eager" : "lazy"}
+                  onLoad={(e) => {
+                    const img = e.target as HTMLImageElement;
+                    img.style.opacity = '1';
+                  }}
+                  style={{
+                    opacity: 0,
+                    transition: 'opacity 0.3s ease-in-out',
+                  }}
+                />
+              </Link>
             </PhotoItem>
           );
         })}

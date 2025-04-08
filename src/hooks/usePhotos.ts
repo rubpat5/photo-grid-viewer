@@ -19,6 +19,12 @@ export const usePhotos = (): UsePhotosResult => {
         setLoading(true);
         const response = await getCuratedPhotos();
         setPhotos(response.photos);
+        
+        if (response.photos.length > 0) {
+          const img = new Image();
+          img.src = response.photos[0].src.medium;
+        }
+        
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch photos');

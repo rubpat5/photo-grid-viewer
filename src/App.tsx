@@ -1,15 +1,18 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import GridPage from './pages/GridPage';
-import DetailsPage from './pages/DetailsPage';
+
+const GridPage = lazy(() => import('./pages/GridPage'));
+const DetailsPage = lazy(() => import('./pages/DetailsPage'));
 
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<GridPage />} />
-        <Route path="/photo/:id" element={<DetailsPage />} />
-      </Routes>
+      <Suspense fallback={<div>Loading...</div>}>
+        <Routes>
+          <Route path="/" element={<GridPage />} />
+          <Route path="/photo/:id" element={<DetailsPage />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }
