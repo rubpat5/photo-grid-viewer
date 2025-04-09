@@ -1,103 +1,172 @@
+import styled from 'styled-components';
 import { usePhotos } from '../hooks/usePhotos';
 import { Link } from 'react-router-dom';
-import { useRef, useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import { Container, Grid, PhotoItem, LoadingMessage } from './styles/GridStyles';
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import type { Photo } from '../utils/imgClient';
 
-const throttle = (fn: Function, delay: number) => {
-  let lastCall = 0;
-  return (...args: any[]) => {
-    const now = Date.now();
-    if (now - lastCall < delay) return;
-    lastCall = now;
-    return fn(...args);
-  };
-};
+const Container = styled.div`
+  padding: 20px;
+  height: 100vh;
+  overflow-y: auto;
+`;
+
+const Grid = styled.div<{ height: number }>`
+  position: relative;
+  height: ${props => `${props.height}px`};
+`;
+
+const PhotoLink = styled(Link)<{ column: number; top: number; width: number; aspectRatio: number }>`
+  position: absolute;
+  left: ${props => props.column * (props.width + 20)}px;
+  top: ${props => props.top}px;
+  width: ${props => props.width}px;
+  display: block;
+  break-inside: avoid;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease-in-out;
+
+  &:hover {
+    transform: scale(1.02);
+  }
+
+  img {
+    width: 100%;
+    aspect-ratio: ${props => props.aspectRatio};
+    height: auto;
+    display: block;
+    background-color: #f0f0f0;
+  }
+`;
+
+const LoadingMessage = styled.div`
+  text-align: center;
+  padding: 40px;
+  font-size: 1.2rem;
+  color: #666;
+`;
 
 function GridPage() {
   const { photos, loading, error } = usePhotos();
-  const gridRef = useRef<HTMLDivElement>(null);
-  const [visiblePhotos, setVisiblePhotos] = useState<number[]>([]);
-  const [containerHeight, setContainerHeight] = useState(0);
-  const [photoPositions, setPhotoPositions] = useState<{ [key: number]: { top: number; left: number; height: number } }>({});
-  const [renderedPhotos, setRenderedPhotos] = useState<Set<number>>(new Set());
-
-  useEffect(() => {
-    if (!gridRef.current || photos.length === 0) return;
-
-    const container = gridRef.current;
-    const containerWidth = container.clientWidth;
-    const columnCount = window.innerWidth >= 1200 ? 3 : window.innerWidth >= 768 ? 2 : 1;
-    const columnWidth = (containerWidth - (columnCount - 1) * 20) / columnCount;
-    const columnHeights = new Array(columnCount).fill(0);
-    const positions: { [key: number]: { top: number; left: number; height: number } } = {};
-
-    photos.forEach((photo, index) => {
-      const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
-      const left = shortestColumnIndex * (columnWidth + 20);
-      const top = columnHeights[shortestColumnIndex];
-      const aspectRatio = photo.width / photo.height;
-      const height = columnWidth / aspectRatio;
-
-      positions[index] = { top, left, height };
-      columnHeights[shortestColumnIndex] = top + height + 20;
-    });
-
-    setPhotoPositions(positions);
-    setContainerHeight(Math.max(...columnHeights));
-  }, [photos]);
-
-  const updateVisiblePhotos = useCallback(() => {
-    if (!gridRef.current) return;
-
-    const container = gridRef.current;
-    const containerRect = container.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-    const buffer = viewportHeight * 2;
-
-    const visibleStart = Math.max(0, -containerRect.top - buffer);
-    const visibleEnd = Math.min(
-      containerHeight,
-      -containerRect.top + viewportHeight + buffer
-    );
-
-    const visibleIndices = Object.entries(photoPositions)
-      .filter(([_, pos]) => {
-        const itemTop = pos.top;
-        const itemBottom = itemTop + pos.height;
-        return (itemTop >= visibleStart && itemTop <= visibleEnd) ||
-               (itemBottom >= visibleStart && itemBottom <= visibleEnd);
-      })
-      .map(([index]) => parseInt(index));
-
-    setVisiblePhotos(visibleIndices);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [visibleIndices, setVisibleIndices] = useState<number[]>([]);
+  const [gridHeight, setGridHeight] = useState(0);
+  const [gridLayout, setGridLayout] = useState<{
+    columnWidth: number;
+    columns: number;
+    columnHeights: number[];
+    itemPositions: Map<number, { column: number; top: number }>;
+  }>({
+    columnWidth: 0,
+    columns: 3,
+    columnHeights: [0, 0, 0],
+    itemPositions: new Map()
+  });
+  
+  const calculateGridLayout = useCallback(() => {
+    if (!containerRef.current || photos.length === 0) return;
     
-    setTimeout(() => {
-      setRenderedPhotos(new Set(visibleIndices));
-    }, 100);
-  }, [photos, containerHeight, photoPositions]);
-
-  useEffect(() => {
-    const throttledUpdate = throttle(updateVisiblePhotos, 100);
-    window.addEventListener('scroll', throttledUpdate);
-    window.addEventListener('resize', throttledUpdate);
-
-    updateVisiblePhotos();
-
-    return () => {
-      window.removeEventListener('scroll', throttledUpdate);
-      window.removeEventListener('resize', throttledUpdate);
-    };
-  }, [updateVisiblePhotos]);
-
-  useEffect(() => {
-    if (photos.length > 0 && visiblePhotos.length === 0) {
-      const initialVisibleCount = Math.min(photos.length, 12);
-      const initialVisible = Array.from({ length: initialVisibleCount }, (_, i) => i);
-      setVisiblePhotos(initialVisible);
-      setRenderedPhotos(new Set(initialVisible));
+    const containerWidth = containerRef.current.clientWidth - 40;
+    let columns = 3;
+    
+    if (window.innerWidth <= 768) {
+      columns = 1;
+    } else if (window.innerWidth <= 1200) {
+      columns = 2;
     }
-  }, [photos, visiblePhotos.length]);
-
+    
+    const gapSpace = (columns - 1) * 20;
+    const columnWidth = (containerWidth - gapSpace) / columns;
+    
+    const columnHeights = Array(columns).fill(0);
+    const itemPositions = new Map<number, { column: number; top: number }>();
+    
+    photos.forEach((photo, index) => {
+      const shortestColumn = columnHeights.indexOf(Math.min(...columnHeights));
+      
+      const aspectRatio = photo.width / photo.height;
+      const itemHeight = columnWidth / aspectRatio;
+      
+      itemPositions.set(index, {
+        column: shortestColumn,
+        top: columnHeights[shortestColumn]
+      });
+      
+      columnHeights[shortestColumn] += itemHeight + 20;
+    });
+    
+    const maxHeight = Math.max(...columnHeights);
+    setGridHeight(maxHeight);
+    
+    setGridLayout({
+      columnWidth,
+      columns,
+      columnHeights,
+      itemPositions
+    });
+    
+  }, [photos]);
+  
+  const updateVisibleItems = useCallback(() => {
+    if (!containerRef.current || !gridLayout.itemPositions.size) return;
+    
+    const scrollTop = containerRef.current.scrollTop;
+    const viewportHeight = containerRef.current.clientHeight;
+    const buffer = viewportHeight;
+    
+    const newVisibleIndices: number[] = [];
+    
+    photos.forEach((_, index) => {
+      const position = gridLayout.itemPositions.get(index);
+      if (!position) return;
+      
+      const aspectRatio = photos[index].width / photos[index].height;
+      const itemHeight = gridLayout.columnWidth / aspectRatio;
+      const itemTop = position.top;
+      const itemBottom = itemTop + itemHeight;
+      
+      if (
+        (itemTop >= scrollTop - buffer && itemTop <= scrollTop + viewportHeight + buffer) ||
+        (itemBottom >= scrollTop - buffer && itemBottom <= scrollTop + viewportHeight + buffer) ||
+        (itemTop <= scrollTop - buffer && itemBottom >= scrollTop + viewportHeight + buffer)
+      ) {
+        newVisibleIndices.push(index);
+      }
+    });
+    
+    setVisibleIndices(newVisibleIndices);
+  }, [photos, gridLayout]);
+  
+  useEffect(() => {
+    calculateGridLayout();
+    
+    const handleResize = () => {
+      calculateGridLayout();
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [calculateGridLayout]);
+  
+  useEffect(() => {
+    if (!containerRef.current) return;
+    
+    updateVisibleItems();
+    
+    const handleScroll = () => {
+      updateVisibleItems();
+    };
+    
+    containerRef.current.addEventListener('scroll', handleScroll);
+    return () => {
+      if (containerRef.current) {
+        containerRef.current.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [updateVisibleItems, gridLayout]);
+  
   if (loading) {
     return <LoadingMessage>Loading...</LoadingMessage>;
   }
@@ -107,47 +176,31 @@ function GridPage() {
   }
 
   return (
-    <Container>
-      <Grid ref={gridRef} style={{ height: containerHeight }}>
+    <Container ref={containerRef}>
+      <Grid height={gridHeight}>
         {photos.map((photo, index) => {
-          const position = photoPositions[index];
+          if (!visibleIndices.includes(index)) return null;
+          
+          const position = gridLayout.itemPositions.get(index);
           if (!position) return null;
-
-          const isVisible = visiblePhotos.includes(index);
-          const shouldRender = renderedPhotos.has(index);
-
-          if (!shouldRender) return null;
-
+          
+          const aspectRatio = photo.width / photo.height;
+          
           return (
-            <PhotoItem
-              key={photo.id}
-              $isPlaceholder={!isVisible}
-              style={{
-                position: 'absolute',
-                top: `${position.top}px`,
-                left: `${position.left}px`,
-                width: `${position.height * (photo.width / photo.height)}px`,
-                height: `${position.height}px`,
-              }}
+            <PhotoLink 
+              key={photo.id} 
+              to={`/photo/${photo.id}`}
+              column={position.column}
+              top={position.top}
+              width={gridLayout.columnWidth}
+              aspectRatio={aspectRatio}
             >
-              <Link to={`/photo/${photo.id}`} style={{ textDecoration: 'none' }}>
-                <img
-                  src={photo.src.medium}
-                  alt={`Photo by ${photo.photographer}`}
-                  width={photo.width}
-                  height={photo.height}
-                  loading={index < 6 ? "eager" : "lazy"}
-                  onLoad={(e) => {
-                    const img = e.target as HTMLImageElement;
-                    img.style.opacity = '1';
-                  }}
-                  style={{
-                    opacity: 0,
-                    transition: 'opacity 0.3s ease-in-out',
-                  }}
-                />
-              </Link>
-            </PhotoItem>
+              <img
+                src={photo.src.large}
+                alt={`Photo by ${photo.photographer}`}
+                loading="lazy"
+              />
+            </PhotoLink>
           );
         })}
       </Grid>
