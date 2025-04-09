@@ -1,12 +1,11 @@
 import styled from 'styled-components';
 import { usePhotos } from '../hooks/usePhotos';
 import { Link } from 'react-router-dom';
-import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
-import type { Photo } from '../utils/imgClient';
+import { useRef, useState, useEffect, useCallback } from 'react';
 
 const Container = styled.div`
   padding: 20px;
-  height: 100vh;
+  height: calc(100vh - 40px);
   overflow-y: auto;
 `;
 
@@ -15,13 +14,12 @@ const Grid = styled.div<{ height: number }>`
   height: ${props => `${props.height}px`};
 `;
 
-const PhotoLink = styled(Link)<{ column: number; top: number; width: number; aspectRatio: number }>`
+const PhotoLink = styled(Link)<{ column: number; top: number; width: number; aspectRatio: number; 'data-index'?: number }>`
   position: absolute;
   left: ${props => props.column * (props.width + 20)}px;
   top: ${props => props.top}px;
   width: ${props => props.width}px;
   display: block;
-  break-inside: avoid;
   margin-bottom: 20px;
   border-radius: 8px;
   overflow: hidden;
@@ -48,22 +46,30 @@ const LoadingMessage = styled.div`
   color: #666;
 `;
 
+const PageWrapper = styled.div`
+  height: 100vh;
+  overflow: hidden;
+`;
+
 function GridPage() {
   const { photos, loading, error } = usePhotos();
   const containerRef = useRef<HTMLDivElement>(null);
-  const [visibleIndices, setVisibleIndices] = useState<number[]>([]);
+  const [visibleItems, setVisibleItems] = useState<Set<number>>(new Set());
   const [gridHeight, setGridHeight] = useState(0);
   const [gridLayout, setGridLayout] = useState<{
     columnWidth: number;
     columns: number;
     columnHeights: number[];
-    itemPositions: Map<number, { column: number; top: number }>;
+    itemPositions: Map<number, { column: number; top: number; height: number }>;
   }>({
     columnWidth: 0,
     columns: 3,
     columnHeights: [0, 0, 0],
     itemPositions: new Map()
   });
+  
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const photoRefs = useRef<Map<number, HTMLAnchorElement | null>>(new Map());
   
   const calculateGridLayout = useCallback(() => {
     if (!containerRef.current || photos.length === 0) return;
@@ -81,7 +87,7 @@ function GridPage() {
     const columnWidth = (containerWidth - gapSpace) / columns;
     
     const columnHeights = Array(columns).fill(0);
-    const itemPositions = new Map<number, { column: number; top: number }>();
+    const itemPositions = new Map<number, { column: number; top: number; height: number }>();
     
     photos.forEach((photo, index) => {
       const shortestColumn = columnHeights.indexOf(Math.min(...columnHeights));
@@ -91,7 +97,8 @@ function GridPage() {
       
       itemPositions.set(index, {
         column: shortestColumn,
-        top: columnHeights[shortestColumn]
+        top: columnHeights[shortestColumn],
+        height: itemHeight
       });
       
       columnHeights[shortestColumn] += itemHeight + 20;
@@ -109,35 +116,54 @@ function GridPage() {
     
   }, [photos]);
   
-  const updateVisibleItems = useCallback(() => {
-    if (!containerRef.current || !gridLayout.itemPositions.size) return;
+  const setupObserver = useCallback(() => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
     
-    const scrollTop = containerRef.current.scrollTop;
-    const viewportHeight = containerRef.current.clientHeight;
-    const buffer = viewportHeight;
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          const index = Number(entry.target.getAttribute('data-index'));
+          
+          if (!isNaN(index)) {
+            setVisibleItems(prev => {
+              const next = new Set(prev);
+              
+              if (entry.isIntersecting) {
+                next.add(index);
+              } else {
+                next.delete(index);
+              }
+              
+              return next;
+            });
+          }
+        });
+      },
+      {
+        root: containerRef.current,
+        rootMargin: '200% 0px',
+        threshold: 0
+      }
+    );
     
-    const newVisibleIndices: number[] = [];
-    
-    photos.forEach((_, index) => {
-      const position = gridLayout.itemPositions.get(index);
-      if (!position) return;
-      
-      const aspectRatio = photos[index].width / photos[index].height;
-      const itemHeight = gridLayout.columnWidth / aspectRatio;
-      const itemTop = position.top;
-      const itemBottom = itemTop + itemHeight;
-      
-      if (
-        (itemTop >= scrollTop - buffer && itemTop <= scrollTop + viewportHeight + buffer) ||
-        (itemBottom >= scrollTop - buffer && itemBottom <= scrollTop + viewportHeight + buffer) ||
-        (itemTop <= scrollTop - buffer && itemBottom >= scrollTop + viewportHeight + buffer)
-      ) {
-        newVisibleIndices.push(index);
+    photoRefs.current.forEach((element, index) => {
+      if (element) {
+        observerRef.current?.observe(element);
       }
     });
-    
-    setVisibleIndices(newVisibleIndices);
-  }, [photos, gridLayout]);
+  }, []);
+  
+  const registerPhotoRef = (index: number, element: HTMLAnchorElement | null) => {
+    if (element !== photoRefs.current.get(index)) {
+      photoRefs.current.set(index, element);
+      
+      if (element && observerRef.current) {
+        observerRef.current.observe(element);
+      }
+    }
+  };
   
   useEffect(() => {
     calculateGridLayout();
@@ -151,21 +177,48 @@ function GridPage() {
   }, [calculateGridLayout]);
   
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (gridLayout.itemPositions.size > 0) {
+      requestAnimationFrame(() => {
+        setupObserver();
+      });
+    }
     
-    updateVisibleItems();
-    
-    const handleScroll = () => {
-      updateVisibleItems();
-    };
-    
-    containerRef.current.addEventListener('scroll', handleScroll);
     return () => {
-      if (containerRef.current) {
-        containerRef.current.removeEventListener('scroll', handleScroll);
+      if (observerRef.current) {
+        observerRef.current.disconnect();
       }
     };
-  }, [updateVisibleItems, gridLayout]);
+  }, [gridLayout, setupObserver]);
+  
+  useEffect(() => {
+    if (photos.length > 0 && visibleItems.size === 0) {
+      const initialItems = new Set<number>();
+      const initialCount = Math.min(photos.length, 30);
+      for (let i = 0; i < initialCount; i++) {
+        initialItems.add(i);
+      }
+      setVisibleItems(initialItems);
+    }
+  }, [photos.length, visibleItems.size]);
+
+  const shouldRenderItem = useCallback((index: number) => {
+    if (visibleItems.has(index)) return true;
+    
+    const position = gridLayout.itemPositions.get(index);
+    if (!position || !containerRef.current) return false;
+    
+    const containerTop = containerRef.current.scrollTop;
+    const containerBottom = containerTop + containerRef.current.clientHeight;
+    const bufferSize = containerRef.current.clientHeight * 1.5;
+    
+    const itemTop = position.top;
+    const itemBottom = position.top + position.height;
+    
+    return (
+      (itemTop >= containerTop - bufferSize && itemTop <= containerBottom + bufferSize) ||
+      (itemBottom >= containerTop - bufferSize && itemBottom <= containerBottom + bufferSize)
+    );
+  }, [visibleItems, gridLayout.itemPositions]);
   
   if (loading) {
     return <LoadingMessage>Loading...</LoadingMessage>;
@@ -176,35 +229,39 @@ function GridPage() {
   }
 
   return (
-    <Container ref={containerRef}>
-      <Grid height={gridHeight}>
-        {photos.map((photo, index) => {
-          if (!visibleIndices.includes(index)) return null;
-          
-          const position = gridLayout.itemPositions.get(index);
-          if (!position) return null;
-          
-          const aspectRatio = photo.width / photo.height;
-          
-          return (
-            <PhotoLink 
-              key={photo.id} 
-              to={`/photo/${photo.id}`}
-              column={position.column}
-              top={position.top}
-              width={gridLayout.columnWidth}
-              aspectRatio={aspectRatio}
-            >
-              <img
-                src={photo.src.large}
-                alt={`Photo by ${photo.photographer}`}
-                loading="lazy"
-              />
-            </PhotoLink>
-          );
-        })}
-      </Grid>
-    </Container>
+    <PageWrapper>
+      <Container ref={containerRef}>
+        <Grid height={gridHeight}>
+          {photos.map((photo, index) => {
+            const position = gridLayout.itemPositions.get(index);
+            if (!position) return null;
+            
+            if (!shouldRenderItem(index)) return null;
+            
+            const aspectRatio = photo.width / photo.height;
+            
+            return (
+              <PhotoLink 
+                key={photo.id} 
+                to={`/photo/${photo.id}`}
+                column={position.column}
+                top={position.top}
+                width={gridLayout.columnWidth}
+                aspectRatio={aspectRatio}
+                data-index={index}
+                ref={el => registerPhotoRef(index, el)}
+              >
+                <img
+                  src={photo.src.large}
+                  alt={`Photo by ${photo.photographer}`}
+                  loading="lazy"
+                />
+              </PhotoLink>
+            );
+          })}
+        </Grid>
+      </Container>
+    </PageWrapper>
   );
 }
 
