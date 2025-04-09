@@ -9,7 +9,8 @@ import {
   Photographer,
   ViewOnPexelsText,
   GoBack,
-  LoadingMessage
+  LoadingMessage,
+  ContentWrapper
 } from './styles/DetailsStyles';
 
 function DetailsPage() {
@@ -18,7 +19,7 @@ function DetailsPage() {
   const { photo, loading, error } = usePhotoDetails(id);
 
   if (loading) {
-    return <LoadingMessage>Loading...</LoadingMessage>;
+    return <LoadingMessage>Loading photo details...</LoadingMessage>;
   }
 
   if (error) {
@@ -33,14 +34,25 @@ function DetailsPage() {
     <Container>
       <PhotoPane>
         <GoBack onClick={() => navigate(-1)}>← Back to Grid</GoBack>
-        <ImgPage>
-          <img src={photo.src.large} alt={photo.alt || `Photo by ${photo.photographer}`} />
-        </ImgPage>
-        <InfoSection>
-          <Title>{photo.alt || 'Untitled'}</Title>
-          <Photographer>Photographer: {photo.photographer}</Photographer>
-          <ViewOnPexelsText>View on Pexels: <a href={photo.url} target="_blank" rel="noopener noreferrer">Original Photo</a></ViewOnPexelsText>
-        </InfoSection>
+        
+        <ContentWrapper>
+          <ImgPage>
+            <img 
+              src={photo.src.large2x} 
+              alt={photo.alt || `Photo by ${photo.photographer}`} 
+            />
+          </ImgPage>
+          
+          <InfoSection>
+            <Title>{photo.alt || 'Untitled Photo'}</Title>
+            <Photographer>By: {photo.photographer}</Photographer>
+            <ViewOnPexelsText>
+              <a href={photo.url} target="_blank" rel="noopener noreferrer">
+                View original on Pexels
+              </a>
+            </ViewOnPexelsText>
+          </InfoSection>
+        </ContentWrapper>
       </PhotoPane>
     </Container>
   );
