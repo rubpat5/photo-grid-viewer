@@ -12,22 +12,23 @@ const Container = styled.div`
 const Grid = styled.div<{ height: number }>`
   position: relative;
   height: ${props => `${props.height}px`};
+  width: 100%;
 `;
 
-const PhotoLink = styled(Link)<{ column: number; top: number; width: number; aspectRatio: number; 'data-index'?: number }>`
+const PhotoLink = styled(Link)<{ transform: string; width: number; aspectRatio: number; 'data-index'?: number }>`
   position: absolute;
-  left: ${props => props.column * (props.width + 20)}px;
-  top: ${props => props.top}px;
   width: ${props => props.width}px;
+  transform: ${props => props.transform};
   display: block;
-  margin-bottom: 20px;
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease-in-out;
+  transition: transform 0.2s ease-in-out, opacity 0.2s ease-in-out;
+  will-change: transform;
 
   &:hover {
-    transform: scale(1.02);
+    z-index: 1;
+    transform: ${props => props.transform} scale(1.02);
   }
 
   img {
@@ -83,7 +84,8 @@ function GridPage() {
       columns = 2;
     }
     
-    const gapSpace = (columns - 1) * 20;
+    const gapSize = 20;
+    const gapSpace = (columns - 1) * gapSize;
     const columnWidth = (containerWidth - gapSpace) / columns;
     
     const columnHeights = Array(columns).fill(0);
@@ -101,7 +103,7 @@ function GridPage() {
         height: itemHeight
       });
       
-      columnHeights[shortestColumn] += itemHeight + 20;
+      columnHeights[shortestColumn] += itemHeight + gapSize;
     });
     
     const maxHeight = Math.max(...columnHeights);
@@ -239,13 +241,16 @@ function GridPage() {
             if (!shouldRenderItem(index)) return null;
             
             const aspectRatio = photo.width / photo.height;
+            const x = position.column * (gridLayout.columnWidth + 20);
+            const y = position.top;
+            
+            const transform = `translate3d(${x}px, ${y}px, 0)`;
             
             return (
               <PhotoLink 
                 key={photo.id} 
                 to={`/photo/${photo.id}`}
-                column={position.column}
-                top={position.top}
+                transform={transform}
                 width={gridLayout.columnWidth}
                 aspectRatio={aspectRatio}
                 data-index={index}
