@@ -6,6 +6,10 @@ export const Container = styled.div`
   height: 100vh;
   overflow-y: auto;
   box-sizing: border-box;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  will-change: scroll-position;
 `;
 
 export const Grid = styled.div<{ height: number }>`

@@ -1,14 +1,15 @@
 import styled from 'styled-components';
 
 export const Container = styled.div`
-  padding: 40px 20px;
+  padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
   background-color: #f9f9f9;
-  min-height: calc(100vh - 80px);
+  min-height: 100vh;
+  box-sizing: border-box;
   
   @media (max-width: 900px) {
-    padding: 20px 10px;
+    padding: 10px;
     overflow-y: auto;
     height: 100vh;
     scrollbar-width: none;
@@ -169,7 +170,7 @@ export const GoBack = styled.button`
 
 export const LoadingMessage = styled.div`
   text-align: center;
-  padding: 60px;
+  padding: 40px;
   font-size: 1.4rem;
   color: #555;
   display: flex;
