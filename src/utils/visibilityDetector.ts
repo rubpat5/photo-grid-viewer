@@ -45,4 +45,4 @@ export function createIntersectionObserver(
       threshold: 0.01
     }
   );
-} 
+}

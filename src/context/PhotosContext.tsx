@@ -122,4 +122,4 @@ export const usePhotos = (): PhotosContextType => {
   }
   
   return context;
-}; 
+};

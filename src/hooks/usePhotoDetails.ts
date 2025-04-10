@@ -37,4 +37,4 @@ export const usePhotoDetails = (id: string | undefined): UsePhotoDetailsResult =
   }, [id]);
 
   return { photo, loading, error };
-}; 
+};

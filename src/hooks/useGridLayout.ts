@@ -166,4 +166,4 @@ export function useGridLayout({ photos }: UseGridLayoutProps) {
     shouldRenderItem,
     registerPhotoRef
   };
-} 
+}

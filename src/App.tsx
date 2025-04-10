@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import { PhotosProvider } from './context/PhotosContext';
 import { ScrollProvider } from './context/ScrollContext';
 
@@ -8,7 +8,7 @@ const DetailsPage = lazy(() => import('./pages/DetailsPage'));
 
 function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <PhotosProvider>
         <ScrollProvider>
           <Suspense fallback={<div>Loading...</div>}>
@@ -19,7 +19,7 @@ function App() {
           </Suspense>
         </ScrollProvider>
       </PhotosProvider>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 

@@ -59,4 +59,4 @@ const PhotoItem: React.FC<PhotoItemProps> = ({ photo, index, gridLayout, registe
   );
 };
 
-export default PhotoItem; 
+export default PhotoItem;

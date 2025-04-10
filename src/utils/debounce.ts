@@ -14,4 +14,4 @@ export function debounce<T extends (...args: any[]) => any>(
       timeout = null;
     }, wait);
   };
-} 
+}

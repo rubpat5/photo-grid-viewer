@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import { splitVendorChunkPlugin } from 'vite';
 
 export default defineConfig({
+  base: '/photo-grid-viewer/',
   plugins: [
     react(),
     splitVendorChunkPlugin()
@@ -13,9 +14,7 @@ export default defineConfig({
       compress: {
         drop_console: true,
         drop_debugger: true,
-        pure_funcs: ['console.log', 'console.info', 'console.debug'],
-        dead_code: true,
-        unused: true
+        pure_funcs: ['console.log', 'console.info', 'console.debug']
       },
       format: {
         comments: false
@@ -36,6 +35,12 @@ export default defineConfig({
             }
             return 'vendor';
           }
+          if (id.includes('src/components') && id.match(/[\\/]components[\\/].*\.(js|jsx|ts|tsx)$/)) {
+            const match = id.match(/[\\/]components[\\/](.*?)[\\/]/);
+            if (match) {
+              return `components-${match[1]}`;
+            }
+          }
         },
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
@@ -53,6 +58,7 @@ export default defineConfig({
     exclude: []
   },
   esbuild: {
-    treeShaking: true
+    treeShaking: true,
+    target: 'esnext'
   }
 }); 

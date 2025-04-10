@@ -44,4 +44,4 @@ export const useScroll = (): ScrollContextType => {
   }
   
   return context;
-}; 
+};

@@ -70,4 +70,4 @@ export function calculateGridLayout(
     },
     gridHeight: maxHeight
   };
-} 
+}
