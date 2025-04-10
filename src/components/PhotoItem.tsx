@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { PhotoLink } from '../pages/styles/GridPage.styles';
 import { GridLayout } from '../utils/gridCalculator';
 import type { Photo } from '../utils/imgClient';
+import { useNavigate } from 'react-router-dom';
+import { useScroll } from '../context/ScrollContext';
 
 interface PhotoItemProps {
   photo: Photo;
@@ -11,7 +13,10 @@ interface PhotoItemProps {
 }
 
 const PhotoItem: React.FC<PhotoItemProps> = ({ photo, index, gridLayout, registerPhotoRef }) => {
+  const navigate = useNavigate();
+  const { setGridScrollPosition } = useScroll();
   const position = gridLayout.itemPositions.get(index);
+  
   if (!position) return null;
   
   const aspectRatio = photo.width / photo.height;
@@ -19,6 +24,15 @@ const PhotoItem: React.FC<PhotoItemProps> = ({ photo, index, gridLayout, registe
   const y = position.top;
   
   const transform = `translate3d(${x}px, ${y}px, 0)`;
+  
+  const handlePhotoClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const container = document.querySelector('.grid-container') as HTMLElement;
+    if (container) {
+      setGridScrollPosition(container.scrollTop);
+    }
+    navigate(`/photo/${photo.id}`);
+  }, [navigate, photo.id, setGridScrollPosition]);
   
   return (
     <PhotoLink 
@@ -29,6 +43,7 @@ const PhotoItem: React.FC<PhotoItemProps> = ({ photo, index, gridLayout, registe
       $aspectRatio={aspectRatio}
       data-index={index}
       ref={el => registerPhotoRef(index, el)}
+      onClick={handlePhotoClick}
     >
       <img
         src={photo.src.large}

@@ -9,7 +9,12 @@ export const Container = styled.div`
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  will-change: scroll-position;
+  will-change: transform;
+  
+  &.instant-scroll {
+    overflow-y: hidden;
+    scroll-behavior: auto !important;
+  }
 `;
 
 export const Grid = styled.div<{ height: number }>`
@@ -26,8 +31,8 @@ export const PhotoLink = styled(Link)<{ transform: string; width: number; $aspec
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease-in-out, opacity 0.2s ease-in-out;
-  will-change: transform;
+  transition: none;
+  will-change: auto;
 
   &:hover {
     z-index: 1;

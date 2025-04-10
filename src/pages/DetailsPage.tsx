@@ -18,6 +18,10 @@ function DetailsPage() {
   const navigate = useNavigate();
   const { photo, loading, error } = usePhotoDetails(id);
 
+  const handleGoBack = () => {
+    navigate(-1);
+  };
+
   if (loading) {
     return <LoadingMessage>Loading photo details...</LoadingMessage>;
   }
@@ -33,8 +37,7 @@ function DetailsPage() {
   return (
     <Container>
       <PhotoPane>
-        <GoBack onClick={() => navigate(-1)}>← Back to Grid</GoBack>
-        
+        <GoBack onClick={handleGoBack}>← Back to Grid</GoBack>
         <ContentWrapper>
           <ImgPage>
             <img 
@@ -42,7 +45,6 @@ function DetailsPage() {
               alt={photo.alt || `Photo by ${photo.photographer}`} 
             />
           </ImgPage>
-          
           <InfoSection>
             <Title>{photo.alt || 'Untitled Photo'}</Title>
             <Photographer>By: {photo.photographer}</Photographer>

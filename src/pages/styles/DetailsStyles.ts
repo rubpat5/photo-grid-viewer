@@ -71,11 +71,11 @@ export const ImgPage = styled.div`
     max-height: 70vh;
     border-radius: 12px;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s ease;
+    transition: none;
     object-fit: contain;
     
     &:hover {
-      transform: scale(1.01);
+      transform: none;
     }
   }
   
@@ -104,36 +104,30 @@ export const InfoSection = styled.div`
 `;
 
 export const Title = styled.h1`
-  font-size: 2.2rem;
+  font-size: 2rem;
   margin: 0;
-  color: #222;
-  font-weight: 700;
+  color: #1a1a1a;
   
-  @media (max-width: 768px) {
-    font-size: 1.8rem;
+  @media (max-width: 900px) {
+    font-size: 1.6rem;
   }
 `;
 
-export const Photographer = styled.p`
+export const Photographer = styled.h2`
   font-size: 1.3rem;
-  color: #555;
   margin: 0;
+  color: #4a6cf7;
   font-weight: 500;
 `;
 
-export const ViewOnPexelsText = styled.p`
-  font-size: 1.1rem;
-  color: #777;
-  margin: 0;
+export const ViewOnPexelsText = styled.div`
+  margin-top: 10px;
   
   a {
-    color: #0066cc;
+    color: #4a6cf7;
     text-decoration: none;
-    font-weight: 500;
-    transition: color 0.2s;
     
     &:hover {
-      color: #004499;
       text-decoration: underline;
     }
   }
@@ -148,17 +142,17 @@ export const GoBack = styled.button`
   cursor: pointer;
   font-size: 1.1rem;
   font-weight: 600;
-  transition: all 0.2s ease;
+  transition: none;
   align-self: flex-start;
   
   &:hover {
     background: #3451c6;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transform: none;
+    box-shadow: none;
   }
   
   &:active {
-    transform: translateY(0);
+    transform: none;
     box-shadow: none;
   }
   
@@ -171,10 +165,10 @@ export const GoBack = styled.button`
 export const LoadingMessage = styled.div`
   text-align: center;
   padding: 40px;
-  font-size: 1.4rem;
-  color: #555;
+  font-size: 1.6rem;
+  color: #666;
+  height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 60vh;
 `; 

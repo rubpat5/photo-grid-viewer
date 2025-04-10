@@ -1,5 +1,5 @@
-import { usePhotos } from '../hooks/usePhotos';
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { usePhotos } from '../context/PhotosContext';
+import { useRef, useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import { 
   Container, 
   Grid, 
@@ -9,6 +9,7 @@ import {
 import { calculateGridLayout, GridLayout } from '../utils/gridCalculator';
 import { createIntersectionObserver, shouldRenderItem as checkItemVisibility } from '../utils/visibilityDetector';
 import PhotoItem from '../components/PhotoItem';
+import { useScroll } from '../context/ScrollContext';
 
 function GridPage() {
   const { photos, loading, error } = usePhotos();
@@ -22,8 +23,12 @@ function GridPage() {
     itemPositions: new Map()
   });
   
+  const { gridScrollPosition, setGridScrollPosition } = useScroll();
   const observerRef = useRef<IntersectionObserver | null>(null);
   const photoRefs = useRef<Map<number, HTMLAnchorElement | null>>(new Map());
+  const scrollTimeoutRef = useRef<number | null>(null);
+  const hasRestoredScroll = useRef<boolean>(false);
+  const [initialLoad, setInitialLoad] = useState(true);
   
   const computeGridLayout = useCallback(() => {
     if (!containerRef.current || photos.length === 0) return;
@@ -112,6 +117,32 @@ function GridPage() {
     }
   }, [photos.length, visibleItems.size]);
 
+  useLayoutEffect(() => {
+    if (containerRef.current && gridScrollPosition > 0 && gridLayout.itemPositions.size > 0 && !hasRestoredScroll.current) {
+      containerRef.current.scrollTop = gridScrollPosition;
+      hasRestoredScroll.current = true;
+      
+      setTimeout(() => {
+        setInitialLoad(false);
+      }, 50);
+    } else if (gridLayout.itemPositions.size > 0 && !hasRestoredScroll.current) {
+      setInitialLoad(false);
+    }
+  }, [gridScrollPosition, gridLayout.itemPositions.size]);
+
+  const handleScroll = useCallback(() => {
+    if (scrollTimeoutRef.current !== null) {
+      window.cancelAnimationFrame(scrollTimeoutRef.current);
+    }
+    
+    scrollTimeoutRef.current = window.requestAnimationFrame(() => {
+      if (containerRef.current) {
+        setGridScrollPosition(containerRef.current.scrollTop);
+      }
+      scrollTimeoutRef.current = null;
+    });
+  }, [setGridScrollPosition]);
+
   const shouldRenderItem = useCallback((index: number) => {
     if (!containerRef.current) return visibleItems.has(index);
     
@@ -134,7 +165,12 @@ function GridPage() {
 
   return (
     <PageWrapper>
-      <Container ref={containerRef}>
+      <Container 
+        ref={containerRef} 
+        onScroll={handleScroll} 
+        className={`grid-container ${initialLoad ? 'instant-scroll' : ''}`}
+        style={initialLoad ? { scrollBehavior: 'auto', overflowY: 'hidden' } : undefined}
+      >
         <Grid height={gridHeight}>
           {photos.map((photo, index) => {
             if (!shouldRenderItem(index)) return null;

@@ -39,7 +39,7 @@ const getApiKey = (): string => {
   return apiKey;
 };
 
-export const getCuratedPhotos = async (page = 1, perPage = 30): Promise<ApiResponse> => {
+export const getCuratedPhotos = async (page = 1, perPage = 80): Promise<ApiResponse> => {
   const apiKey = getApiKey();
 
   const response = await fetch(`${API_BASE_URL}/curated?page=${page}&per_page=${perPage}`, {
