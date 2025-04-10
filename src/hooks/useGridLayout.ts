@@ -1,7 +1,8 @@
 import { useRef, useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import { calculateGridLayout, GridLayout } from '../utils/gridCalculator';
-import { createIntersectionObserver, shouldRenderItem as checkItemVisibility } from '../utils/visibilityDetector';
+import { shouldRenderItem as checkItemVisibility } from '../utils/visibilityDetector';
 import { useScroll } from '../context/ScrollContext';
+import { debounce } from '../utils/debounce';
 import type { Photo } from '../utils/imgClient';
 
 interface UseGridLayoutProps {
@@ -11,13 +12,21 @@ interface UseGridLayoutProps {
 export function useGridLayout({ photos }: UseGridLayoutProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [visibleItems, setVisibleItems] = useState<Set<number>>(new Set());
-  const [gridHeight, setGridHeight] = useState(0);
-  const [gridLayout, setGridLayout] = useState<GridLayout>({
-    columnWidth: 0,
-    columns: 3,
-    columnHeights: [0, 0, 0],
-    itemPositions: new Map()
+  
+  const [gridState, setGridState] = useState<{
+    height: number;
+    layout: GridLayout;
+  }>({
+    height: 0,
+    layout: {
+      columnWidth: 0,
+      columns: 3,
+      columnHeights: [0, 0, 0],
+      itemPositions: new Map()
+    }
   });
+  
+  const { height: gridHeight, layout: gridLayout } = gridState;
   
   const { gridScrollPosition } = useScroll();
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -31,8 +40,10 @@ export function useGridLayout({ photos }: UseGridLayoutProps) {
     const containerWidth = containerRef.current.clientWidth - 40;
     const { layout, gridHeight: newGridHeight } = calculateGridLayout(containerWidth, photos);
     
-    setGridHeight(newGridHeight);
-    setGridLayout(layout);
+    setGridState({
+      height: newGridHeight,
+      layout
+    });
   }, [photos]);
   
   const setupObserver = useCallback(() => {
@@ -40,23 +51,33 @@ export function useGridLayout({ photos }: UseGridLayoutProps) {
       observerRef.current.disconnect();
     }
     
-    const handleVisibilityChange = (index: number, isVisible: boolean) => {
+    const handleVisibilityChange = (entries: IntersectionObserverEntry[]) => {
       setVisibleItems(prev => {
         const next = new Set(prev);
         
-        if (isVisible) {
-          next.add(index);
-        } else {
-          next.delete(index);
-        }
+        entries.forEach(entry => {
+          const index = Number(entry.target.getAttribute('data-index'));
+          
+          if (!isNaN(index)) {
+            if (entry.isIntersecting) {
+              next.add(index);
+            } else {
+              next.delete(index);
+            }
+          }
+        });
         
         return next;
       });
     };
     
-    observerRef.current = createIntersectionObserver(
-      containerRef.current,
-      handleVisibilityChange
+    observerRef.current = new IntersectionObserver(
+      handleVisibilityChange,
+      {
+        root: containerRef.current,
+        rootMargin: '175% 0px',
+        threshold: 0.01
+      }
     );
     
     photoRefs.current.forEach((element, index) => {
@@ -79,12 +100,12 @@ export function useGridLayout({ photos }: UseGridLayoutProps) {
   useEffect(() => {
     computeGridLayout();
     
-    const handleResize = () => {
+    const debouncedResize = debounce(() => {
       computeGridLayout();
-    };
+    }, 200);
     
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener('resize', debouncedResize);
+    return () => window.removeEventListener('resize', debouncedResize);
   }, [computeGridLayout]);
   
   useEffect(() => {
@@ -99,7 +120,7 @@ export function useGridLayout({ photos }: UseGridLayoutProps) {
         observerRef.current.disconnect();
       }
     };
-  }, [gridLayout, setupObserver]);
+  }, [gridState, setupObserver]);
   
   useEffect(() => {
     if (photos.length > 0 && visibleItems.size === 0) {
@@ -123,7 +144,7 @@ export function useGridLayout({ photos }: UseGridLayoutProps) {
     } else if (gridLayout.itemPositions.size > 0 && !hasRestoredScroll.current) {
       setInitialLoad(false);
     }
-  }, [gridScrollPosition, gridLayout.itemPositions.size]);
+  }, [gridScrollPosition, gridState]);
 
   const shouldRenderItem = useCallback((index: number) => {
     if (!containerRef.current) return visibleItems.has(index);
