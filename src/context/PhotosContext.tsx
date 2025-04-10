@@ -4,7 +4,7 @@ import type { Photo } from '../utils/imgClient';
 
 const PHOTOS_CACHE_KEY = 'picsart_photos_cache';
 const CACHE_EXPIRY_KEY = 'picsart_photos_cache_expiry';
-const CACHE_DURATION = 60 * 60 * 1000;
+const CACHE_DURATION = 60 * 10 * 1000;
 
 interface PhotosContextType {
   photos: Photo[];
