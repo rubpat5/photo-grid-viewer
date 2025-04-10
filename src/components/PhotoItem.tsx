@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { PhotoLink } from '../pages/styles/GridPage.styles';
+import { PhotoLink } from '../pages/styles/GridStyles';
 import { GridLayout } from '../utils/gridCalculator';
 import type { Photo } from '../utils/imgClient';
 import { useNavigate } from 'react-router-dom';

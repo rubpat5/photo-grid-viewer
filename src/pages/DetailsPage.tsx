@@ -12,13 +12,18 @@ import {
   LoadingMessage,
   ContentWrapper
 } from './styles/DetailsStyles';
+import { useScroll } from '../context/ScrollContext';
 
 function DetailsPage() {
   const { id } = useParams();
+  const { setGridScrollPosition } = useScroll();
   const navigate = useNavigate();
   const { photo, loading, error } = usePhotoDetails(id);
 
   const handleGoBack = () => {
+    setTimeout(() => {
+      setGridScrollPosition(0);
+    }, 100);
     navigate(-1);
   };
 
