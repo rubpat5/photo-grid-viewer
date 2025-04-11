@@ -12,7 +12,7 @@ A photo gallery app with a responsive masonry grid layout and detailed photo vie
 
 - React with TypeScript
 - Vite for builds
-- React Router for navigation
+- React Router for navigation(implemented with HashRouter because github pages doesn't support BrowserRouter)
 - Styled Components for styling
 - Pexels API for photo data
 
